@@ -1,0 +1,18 @@
+# Gait Analysis Deep Learning Requirements
+# Install: pip install -r requirements-dl.txt
+
+-r requirements-base.txt
+
+# PyTorch (install with correct CUDA version)
+# For CUDA 11.8: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# For CUDA 12.1: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Logging and tracking
+tensorboard>=2.13.0
+wandb>=0.15.0
+
+# Utilities
+einops>=0.6.0
