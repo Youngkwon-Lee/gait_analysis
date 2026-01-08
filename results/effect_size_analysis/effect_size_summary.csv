@@ -1,0 +1,19 @@
+Task,Channel,Effect_Size,|Effect_Size|,Interpretation,T_statistic,p_value,Significant
+CVA Detection,Acc_Y,-1.2356,1.2356,Very Large (매우 큼),9.5312,0.0000,Yes
+CVA Detection,Gyr_Y,-0.4654,0.4654,Small (작음),3.5895,0.0004,Yes
+CVA Detection,Acc_Z,-0.3270,0.3270,Small (작음),2.5222,0.0123,Yes
+CVA Detection,Gyr_X,-0.3162,0.3162,Small (작음),2.4394,0.0154,Yes
+CVA Detection,Gyr_Z,-0.2966,0.2966,Small (작음),2.2880,0.0230,Yes
+CVA Detection,Acc_X,0.0001,0.0001,Negligible (무시할만함),0.0009,0.9993,No
+OA Screening,Gyr_X,-0.5356,0.5356,Medium (중간),4.1313,0.0000,Yes
+OA Screening,Gyr_Y,-0.4471,0.4471,Small (작음),3.4488,0.0007,Yes
+OA Screening,Acc_X,-0.4465,0.4465,Small (작음),3.4443,0.0007,Yes
+OA Screening,Gyr_Z,-0.4427,0.4427,Small (작음),3.4148,0.0008,Yes
+OA Screening,Acc_Y,-0.2481,0.2481,Small (작음),1.9136,0.0569,No
+OA Screening,Acc_Z,-0.1481,0.1481,Negligible (무시할만함),1.1425,0.2544,No
+PD Screening,Acc_Y,-1.4201,1.4201,Very Large (매우 큼),10.9545,0.0000,Yes
+PD Screening,Gyr_X,-0.4890,0.4890,Small (작음),3.7719,0.0002,Yes
+PD Screening,Gyr_Y,-0.4444,0.4444,Small (작음),3.4280,0.0007,Yes
+PD Screening,Gyr_Z,-0.4136,0.4136,Small (작음),3.1900,0.0016,Yes
+PD Screening,Acc_Z,-0.3145,0.3145,Small (작음),2.4260,0.0160,Yes
+PD Screening,Acc_X,0.1211,0.1211,Negligible (무시할만함),0.9340,0.3513,No
