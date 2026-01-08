@@ -4,7 +4,7 @@ dataset/
 # Results
 results/*.csv
 results/*.png
-results/*.json
+# results/*.json  # Allow JSON for detailed results (ROC curves, predictions)
 
 # Models (학습된 모델)
 models/*.pt

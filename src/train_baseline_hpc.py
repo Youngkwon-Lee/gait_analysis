@@ -420,7 +420,9 @@ def train_epoch(model, loader, criterion, optimizer, device, scaler):
 
 
 def evaluate(model, loader, device):
-    """Evaluate model"""
+    """Evaluate model and return detailed metrics"""
+    from sklearn.metrics import roc_curve
+
     model.eval()
     all_preds = []
     all_labels = []
@@ -437,19 +439,36 @@ def evaluate(model, loader, device):
     all_preds = np.array(all_preds)
     all_labels = np.array(all_labels)
 
+    # Performance metrics
     roc_auc = roc_auc_score(all_labels, all_preds)
     predictions = (all_preds > 0.5).astype(int)
     bal_acc = balanced_accuracy_score(all_labels, predictions)
 
+    # Confusion matrix
     tn, fp, fn, tp = confusion_matrix(all_labels, predictions).ravel()
     sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0
     specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+
+    # ROC curve
+    fpr, tpr, thresholds = roc_curve(all_labels, all_preds)
 
     return {
         'roc_auc': roc_auc,
         'balanced_acc': bal_acc,
         'sensitivity': sensitivity,
-        'specificity': specificity
+        'specificity': specificity,
+        # Confusion matrix
+        'tn': int(tn),
+        'fp': int(fp),
+        'fn': int(fn),
+        'tp': int(tp),
+        # ROC curve (convert to list for JSON serialization)
+        'fpr': fpr.tolist(),
+        'tpr': tpr.tolist(),
+        'thresholds': thresholds.tolist(),
+        # Raw predictions (for detailed analysis)
+        'predictions': all_preds.tolist(),
+        'true_labels': all_labels.tolist()
     }
 
 
@@ -565,11 +584,34 @@ def main():
               f"{r['balanced_acc']:.3f} / {paper['balanced_acc']:.3f}")
 
     # Save results
-    results_df = pd.DataFrame(all_results)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    results_file = Config.OUTPUT_PATH / f'dl_baseline_results_{timestamp}.csv'
-    results_df.to_csv(results_file, index=False)
-    print(f"\nResults saved to: {results_file}")
+
+    # Save summary as CSV (excluding large arrays)
+    summary_results = []
+    for r in all_results:
+        summary = {
+            'task': r['task'],
+            'roc_auc': r['roc_auc'],
+            'balanced_acc': r['balanced_acc'],
+            'sensitivity': r['sensitivity'],
+            'specificity': r['specificity'],
+            'tn': r['tn'],
+            'fp': r['fp'],
+            'fn': r['fn'],
+            'tp': r['tp']
+        }
+        summary_results.append(summary)
+
+    results_df = pd.DataFrame(summary_results)
+    csv_file = Config.OUTPUT_PATH / f'dl_baseline_results_{timestamp}.csv'
+    results_df.to_csv(csv_file, index=False)
+    print(f"\nSummary saved to: {csv_file}")
+
+    # Save detailed results as JSON (includes ROC curve, predictions)
+    json_file = Config.OUTPUT_PATH / f'dl_baseline_detailed_{timestamp}.json'
+    with open(json_file, 'w') as f:
+        json.dump(all_results, f, indent=2)
+    print(f"Detailed results saved to: {json_file}")
 
     print(f"\nFinished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
