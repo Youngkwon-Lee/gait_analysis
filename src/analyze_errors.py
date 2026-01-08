@@ -221,7 +221,8 @@ class GaitDataset(Dataset):
             # Load each sensor's data
             sensors_data = {}
             for sensor in Config.SENSORS:
-                sensor_file = trial_path / f"{trial_path.name}_{sensor}.txt"
+                # Correct filename pattern: {trial_name}_raw_data_{sensor}.txt
+                sensor_file = trial_path / f"{trial_path.name}_raw_data_{sensor}.txt"
                 if not sensor_file.exists():
                     print(f"Warning: {sensor_file} not found")
                     return None
