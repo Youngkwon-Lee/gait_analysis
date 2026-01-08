@@ -442,7 +442,7 @@ def analyze_task(task_name, device):
 
     # Load test data
     print("\nLoading test data...")
-    _, test_loader = create_dataloaders(task_name)
+    _, test_loader, _ = create_dataloaders(task_name)
 
     # Initialize analyzer
     analyzer = FeatureImportanceAnalyzer(model, test_loader, device)
