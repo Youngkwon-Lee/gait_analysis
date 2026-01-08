@@ -51,8 +51,10 @@ class ConfusionAnalyzer:
         print(f"\nLoading model from {model_path}...")
         self.model = MultiStreamAttentionCNN(
             num_sensors=len(Config.SENSORS),
-            num_channels=len(Config.CHANNELS),
-            window_size=Config.WINDOW_SIZE
+            in_channels=len(Config.CHANNELS),
+            hidden_dim=64,
+            num_heads=4,
+            dropout=0.3
         ).to(self.device)
 
         checkpoint = torch.load(model_path, map_location=self.device)

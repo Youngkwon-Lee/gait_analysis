@@ -53,66 +53,104 @@ Config.OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
 # Model Architecture (same as training)
 # ============================================================================
 
-class MultiStreamAttentionCNN(nn.Module):
-    """Multi-Stream Attention CNN (arXiv 2511.02047)"""
+class SensorStream(nn.Module):
+    """CNN stream for single sensor"""
 
-    def __init__(self, num_sensors=4, num_channels=6, window_size=300):
+    def __init__(self, in_channels=6, hidden_dim=64, dropout=0.3):
         super().__init__()
-        self.num_sensors = num_sensors
 
-        # Per-sensor stream (identical architecture)
-        self.conv1 = nn.Conv1d(num_channels, 64, kernel_size=5, padding=2)
-        self.bn1 = nn.BatchNorm1d(64)
-        self.conv2 = nn.Conv1d(64, 128, kernel_size=5, padding=2)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.pool = nn.MaxPool1d(2)
-        self.dropout = nn.Dropout(0.5)
+        self.conv1 = nn.Conv1d(in_channels, hidden_dim, kernel_size=7, padding=3)
+        self.bn1 = nn.BatchNorm1d(hidden_dim)
 
-        # Attention mechanism
-        pooled_size = window_size // 4
-        self.attention = nn.Sequential(
-            nn.Linear(128 * pooled_size, 128),
-            nn.Tanh(),
-            nn.Linear(128, 1)
-        )
+        self.conv2 = nn.Conv1d(hidden_dim, hidden_dim, kernel_size=5, padding=2)
+        self.bn2 = nn.BatchNorm1d(hidden_dim)
 
-        # Fusion and classification
-        self.fc1 = nn.Linear(128 * num_sensors, 128)
-        self.fc2 = nn.Linear(128, 1)
+        self.conv3 = nn.Conv1d(hidden_dim, hidden_dim, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm1d(hidden_dim)
+
+        self.pool = nn.AdaptiveAvgPool1d(1)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        batch_size = x.size(0)
-        sensor_features = []
+        # x: (batch, channels, time)
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = self.dropout(x)
 
-        # Process each sensor stream
-        for sensor_idx in range(self.num_sensors):
-            sensor_data = x[:, sensor_idx, :, :]  # (batch, channels, time)
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = self.dropout(x)
 
-            # Convolutional layers
-            h = F.relu(self.bn1(self.conv1(sensor_data)))
-            h = self.pool(h)
-            h = F.relu(self.bn2(self.conv2(h)))
-            h = self.pool(h)
-            h = self.dropout(h)
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = self.pool(x).squeeze(-1)  # (batch, hidden_dim)
 
-            # Flatten
-            h = h.view(batch_size, -1)
+        return x
 
-            # Attention weight
-            attn_weight = torch.sigmoid(self.attention(h))
-            h = h * attn_weight
 
-            sensor_features.append(h)
+class MultiHeadSelfAttention(nn.Module):
+    """Multi-head self attention for sensor fusion"""
 
-        # Concatenate sensor features
-        fused = torch.cat(sensor_features, dim=1)
+    def __init__(self, hidden_dim=64, num_heads=4, dropout=0.1):
+        super().__init__()
+        self.attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.norm = nn.LayerNorm(hidden_dim)
+
+    def forward(self, x):
+        # x: (batch, num_sensors, hidden_dim)
+        attn_out, _ = self.attention(x, x, x)
+        x = self.norm(x + attn_out)
+        return x
+
+
+class MultiStreamAttentionCNN(nn.Module):
+    """Multi-Stream Attention CNN for Gait Classification"""
+
+    def __init__(self, num_sensors=4, in_channels=6, hidden_dim=64,
+                 num_heads=4, dropout=0.3):
+        super().__init__()
+
+        # Per-sensor CNN streams
+        self.streams = nn.ModuleList([
+            SensorStream(in_channels, hidden_dim, dropout)
+            for _ in range(num_sensors)
+        ])
+
+        # Sensor fusion with attention
+        self.attention = MultiHeadSelfAttention(hidden_dim, num_heads, dropout)
 
         # Classification head
-        out = F.relu(self.fc1(fused))
-        out = self.dropout(out)
-        out = self.fc2(out)
+        self.fc = nn.Sequential(
+            nn.Linear(hidden_dim * num_sensors, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1)
+        )
 
-        return out.squeeze(1)
+    def forward(self, x):
+        # x: (batch, num_sensors, channels, time)
+        batch_size = x.shape[0]
+
+        # Process each sensor stream
+        sensor_features = []
+        for i, stream in enumerate(self.streams):
+            sensor_x = x[:, i]  # (batch, channels, time)
+            sensor_feat = stream(sensor_x)  # (batch, hidden_dim)
+            sensor_features.append(sensor_feat)
+
+        # Stack sensors: (batch, num_sensors, hidden_dim)
+        x = torch.stack(sensor_features, dim=1)
+
+        # Apply attention
+        x = self.attention(x)  # (batch, num_sensors, hidden_dim)
+
+        # Flatten and classify
+        x = x.view(batch_size, -1)  # (batch, num_sensors * hidden_dim)
+        x = self.fc(x)
+
+        return x.squeeze(-1)
 
 
 # ============================================================================
@@ -246,8 +284,10 @@ class ErrorAnalyzer:
         print(f"\nLoading model from {model_path}...")
         self.model = MultiStreamAttentionCNN(
             num_sensors=len(Config.SENSORS),
-            num_channels=len(Config.CHANNELS),
-            window_size=Config.WINDOW_SIZE
+            in_channels=len(Config.CHANNELS),
+            hidden_dim=64,
+            num_heads=4,
+            dropout=0.3
         ).to(self.device)
 
         checkpoint = torch.load(model_path, map_location=self.device)
