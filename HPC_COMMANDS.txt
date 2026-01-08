@@ -1,0 +1,58 @@
+# HPC 명령어 (gun3856@VM1212121914)
+
+## 현재 상태
+- 이미 HPC 접속됨: gun3856@VM1212121914
+- 현재 디렉토리: ~/gait_code
+
+---
+
+## 1단계: Git Pull (최신 코드 받기)
+cd ~/gait_code
+git pull origin main
+
+---
+
+## 2단계: Error Analysis 실행
+cd ~/gait_code
+export DATA_PATH=~/gait_code/dataset/data
+export OUTPUT_PATH=~/gait_code/results/error_analysis
+export MODEL_PATH=~/gait_code/models
+nohup python -u src/analyze_errors.py > logs/error_analysis.log 2>&1 &
+
+---
+
+## 3단계: Confusion Analysis 실행
+cd ~/gait_code
+export DATA_PATH=~/gait_code/dataset/data
+export OUTPUT_PATH=~/gait_code/results/confusion_analysis
+export MODEL_PATH=~/gait_code/models
+nohup python -u src/analyze_confusion.py > logs/confusion_analysis.log 2>&1 &
+
+---
+
+## 4단계: 로그 확인
+# Error Analysis
+tail -f ~/gait_code/logs/error_analysis.log
+
+# Confusion Analysis (Ctrl+C 후)
+tail -f ~/gait_code/logs/confusion_analysis.log
+
+---
+
+## 5단계: 완료 확인
+# 마지막 50줄 보기
+tail -50 ~/gait_code/logs/error_analysis.log
+tail -50 ~/gait_code/logs/confusion_analysis.log
+
+# 결과 파일 확인
+ls -lh ~/gait_code/results/error_analysis/
+ls -lh ~/gait_code/results/confusion_analysis/
+
+---
+
+## 결과 다운로드 (로컬에서)
+# Error Analysis
+scp -r gun3856@VM1212121914:~/gait_code/results/error_analysis/* D:/gait_wearable_sensor/results/error_analysis/
+
+# Confusion Analysis
+scp -r gun3856@VM1212121914:~/gait_code/results/confusion_analysis/* D:/gait_wearable_sensor/results/confusion_analysis/

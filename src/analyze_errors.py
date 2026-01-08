@@ -45,7 +45,16 @@ class Config:
     STRIDE = 150
 
     SEED = 42
-    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Use CPU to avoid GPU memory issues during analysis
+    DEVICE = torch.device('cpu')
+
+    # Task definitions (same as train_baseline_hpc.py)
+    TASKS = {
+        'PD_Screening': {'class0': ('HS', 'healthy'), 'class1': ('PD', 'neuro')},
+        'OA_Screening': {'class0': ('HS', 'healthy'), 'class1': [('HOA', 'ortho'), ('KOA', 'ortho')]},
+        'CVA_Detection': {'class0': ('HS', 'healthy'), 'class1': ('CVA', 'neuro')},
+        'PD_vs_CVA': {'class0': ('PD', 'neuro'), 'class1': ('CVA', 'neuro')}
+    }
 
 Config.OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -154,119 +163,157 @@ class MultiStreamAttentionCNN(nn.Module):
 
 
 # ============================================================================
-# Dataset
+# Dataset (same as train_baseline_hpc.py)
 # ============================================================================
 
-class GaitDataset(Dataset):
-    """Gait signals dataset with windowing"""
+def get_trial_paths(cohort, group):
+    """Get all trial paths for a cohort"""
+    cohort_path = Config.BASE_PATH / group / cohort
 
-    def __init__(self, trials, labels, subjects, window_size=300, stride=150):
-        self.trials = trials
-        self.labels = labels
-        self.subjects = subjects
+    if not cohort_path.exists():
+        print(f"Warning: {cohort_path} does not exist")
+        return []
+
+    trials = []
+    for meta_file in cohort_path.rglob("*_meta.json"):
+        trial_path = meta_file.parent
+
+        with open(meta_file, 'r') as f:
+            meta = json.load(f)
+
+        subject = meta.get('subject', 'unknown')
+        trials.append((trial_path, subject))
+
+    return trials
+
+
+class GaitDataset(Dataset):
+    """Gait signals dataset (same as train_baseline_hpc.py)"""
+
+    def __init__(self, trial_paths, labels, window_size=300, stride=150, augment=False):
         self.window_size = window_size
         self.stride = stride
+        self.augment = augment
 
-        # Create windows
-        self.windows = []
-        self.window_labels = []
-        self.window_subjects = []
-        self.window_trial_indices = []
+        # Load all trials and create sliding windows
+        self.samples = []
+        self.labels = []
 
-        for trial_idx, (trial_path, label, subject) in enumerate(zip(trials, labels, subjects)):
-            trial_data = self._load_trial(trial_path)
+        for trial_path, label in zip(trial_paths, labels):
+            trial_data = self._load_trial_data(trial_path)
+            if trial_data is None:
+                continue
 
             # Sliding window
-            num_windows = (trial_data.shape[-1] - window_size) // stride + 1
-            for i in range(num_windows):
-                start = i * stride
-                end = start + window_size
-                window = trial_data[:, :, start:end]
+            for i in range(0, trial_data.shape[0] - window_size + 1, stride):
+                window = trial_data[i:i + window_size]
+                self.samples.append(window)
+                self.labels.append(label)
 
-                self.windows.append(window)
-                self.window_labels.append(label)
-                self.window_subjects.append(subject)
-                self.window_trial_indices.append(trial_idx)
+        self.samples = np.array(self.samples, dtype=np.float32)
+        self.labels = np.array(self.labels, dtype=np.float32)
 
-    def _load_trial(self, trial_path):
-        """Load trial data from disk"""
-        data = np.load(trial_path)
-        return torch.FloatTensor(data)
+        print(f"  Created {len(self.samples)} windows from {len(trial_paths)} trials")
+
+    def _load_trial_data(self, trial_path):
+        """Load trial data from directory"""
+        try:
+            # Load each sensor's data
+            sensors_data = {}
+            for sensor in Config.SENSORS:
+                sensor_file = trial_path / f"{trial_path.name}_{sensor}.txt"
+                if not sensor_file.exists():
+                    print(f"Warning: {sensor_file} not found")
+                    return None
+
+                # Load sensor data: columns = [Acc_X, Acc_Y, Acc_Z, Gyr_X, Gyr_Y, Gyr_Z, ...]
+                data = np.loadtxt(sensor_file)
+                # Take only first 6 channels (Acc + Gyr, exclude Mag)
+                sensors_data[sensor] = data[:, :6]
+
+            # Stack sensors: (time, sensors, channels)
+            trial_data = np.stack([sensors_data[s] for s in Config.SENSORS], axis=1)
+            return trial_data
+
+        except Exception as e:
+            print(f"Warning: Failed to load {trial_path}: {e}")
+            return None
 
     def __len__(self):
-        return len(self.windows)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        return self.windows[idx], self.window_labels[idx], \
-               self.window_subjects[idx], self.window_trial_indices[idx]
+        x = self.samples[idx]  # (window_size, 4, 6)
+        y = self.labels[idx]
+
+        # Transpose to (sensors, channels, time) for CNN
+        x = np.transpose(x, (1, 2, 0))  # (4, 6, window_size)
+
+        if self.augment and np.random.rand() > 0.5:
+            # Random time shift
+            shift = np.random.randint(-20, 20)
+            x = np.roll(x, shift, axis=2)
+
+            # Random noise
+            noise = np.random.randn(*x.shape).astype(np.float32) * 0.01
+            x = x + noise
+
+        return torch.tensor(x), torch.tensor(y, dtype=torch.float32)
 
 
 def load_oa_screening_data():
-    """Load OA Screening data (same as training)"""
+    """Load OA Screening data (same as train_baseline_hpc.py)"""
+    task_config = Config.TASKS['OA_Screening']
 
-    # Class 0: HS
-    hs_path = Config.BASE_PATH / 'healthy/HS'
-    hs_subjects = sorted([s for s in hs_path.glob('*') if s.is_dir()])
+    # Load trials for class 0 (HS)
+    class0_config = task_config['class0']
+    cohort0, group0 = class0_config
+    print(f"\nLoading {cohort0} (class 0)...")
+    trials0 = get_trial_paths(cohort0, group0)
+    print(f"  Found {len(trials0)} trials")
 
-    class0_trials = []
-    for subject_dir in hs_subjects:
-        subject_id = subject_dir.name
-        trials = sorted([t for t in subject_dir.glob('*') if t.is_dir()])
-        for trial_dir in trials:
-            npy_file = trial_dir / f"{trial_dir.name}_processed.npy"
-            if npy_file.exists():
-                class0_trials.append((str(npy_file), 0, subject_id))
+    # Load trials for class 1 (HOA + KOA)
+    class1_config = task_config['class1']
+    trials1 = []
+    for cohort, group in class1_config:
+        print(f"\nLoading {cohort} (class 1)...")
+        cohort_trials = get_trial_paths(cohort, group)
+        trials1.extend(cohort_trials)
+        print(f"  Found {len(cohort_trials)} trials")
+    print(f"  Total class 1: {len(trials1)} trials")
 
-    # Class 1: HOA + KOA
-    class1_trials = []
-    for cohort in ['HOA', 'KOA']:
-        cohort_path = Config.BASE_PATH / f'ortho/{cohort}'
-        if not cohort_path.exists():
-            continue
-        subjects = sorted([s for s in cohort_path.glob('*') if s.is_dir()])
-        for subject_dir in subjects:
-            subject_id = subject_dir.name
-            trials = sorted([t for t in subject_dir.glob('*') if t.is_dir()])
-            for trial_dir in trials:
-                npy_file = trial_dir / f"{trial_dir.name}_processed.npy"
-                if npy_file.exists():
-                    class1_trials.append((str(npy_file), 1, subject_id))
-
-    print(f"Loaded Class 0 (HS): {len(class0_trials)} trials")
-    print(f"Loaded Class 1 (OA): {len(class1_trials)} trials")
-
-    # Combine
-    all_trials = class0_trials + class1_trials
-
-    # Extract components
-    trial_paths = [t[0] for t in all_trials]
-    labels = [t[1] for t in all_trials]
-    subjects = [t[2] for t in all_trials]
+    # Get unique subjects
+    subjects0 = list(set([t[1] for t in trials0]))
+    subjects1 = list(set([t[1] for t in trials1]))
 
     # Subject-wise split
-    unique_subjects = list(set(subjects))
-    train_subjects, test_subjects = train_test_split(
-        unique_subjects, test_size=0.2, random_state=Config.SEED,
-        stratify=[labels[subjects.index(s)] for s in unique_subjects]
+    train_subjects0, test_subjects0 = train_test_split(
+        subjects0, test_size=0.2, random_state=Config.SEED
+    )
+    train_subjects1, test_subjects1 = train_test_split(
+        subjects1, test_size=0.2, random_state=Config.SEED
     )
 
-    # Split trials
-    train_idx = [i for i, s in enumerate(subjects) if s in train_subjects]
-    test_idx = [i for i, s in enumerate(subjects) if s in test_subjects]
+    # Split trials by subject
+    train_trials0 = [t for t in trials0 if t[1] in train_subjects0]
+    test_trials0 = [t for t in trials0 if t[1] in test_subjects0]
+    train_trials1 = [t for t in trials1 if t[1] in train_subjects1]
+    test_trials1 = [t for t in trials1 if t[1] in test_subjects1]
 
-    train_trials = [trial_paths[i] for i in train_idx]
-    train_labels = [labels[i] for i in train_idx]
-    train_subjects = [subjects[i] for i in train_idx]
+    # Combine train and test
+    train_paths = [t[0] for t in train_trials0 + train_trials1]
+    train_labels = [0] * len(train_trials0) + [1] * len(train_trials1)
+    train_subjects = [t[1] for t in train_trials0 + train_trials1]
 
-    test_trials = [trial_paths[i] for i in test_idx]
-    test_labels = [labels[i] for i in test_idx]
-    test_subjects = [subjects[i] for i in test_idx]
+    test_paths = [t[0] for t in test_trials0 + test_trials1]
+    test_labels = [0] * len(test_trials0) + [1] * len(test_trials1)
+    test_subjects = [t[1] for t in test_trials0 + test_trials1]
 
-    print(f"\nTrain: {len(train_trials)} trials, {len(set(train_subjects))} subjects")
-    print(f"Test: {len(test_trials)} trials, {len(set(test_subjects))} subjects")
+    print(f"\nTrain: {len(train_paths)} trials, {len(set(train_subjects))} subjects")
+    print(f"Test: {len(test_paths)} trials, {len(set(test_subjects))} subjects")
 
-    return train_trials, train_labels, train_subjects, \
-           test_trials, test_labels, test_subjects
+    return train_paths, train_labels, train_subjects, \
+           test_paths, test_labels, test_subjects
 
 
 # ============================================================================
@@ -304,8 +351,9 @@ class ErrorAnalyzer:
         _, _, _, test_trials, test_labels, test_subjects = load_oa_screening_data()
 
         self.test_dataset = GaitDataset(
-            test_trials, test_labels, test_subjects,
-            Config.WINDOW_SIZE, Config.STRIDE
+            test_trials, test_labels,
+            Config.WINDOW_SIZE, Config.STRIDE,
+            augment=False
         )
 
         self.test_loader = DataLoader(
@@ -321,11 +369,9 @@ class ErrorAnalyzer:
         all_preds = []
         all_probs = []
         all_labels = []
-        all_subjects = []
-        all_trial_indices = []
 
         with torch.no_grad():
-            for inputs, labels, subjects, trial_indices in self.test_loader:
+            for inputs, labels in self.test_loader:
                 inputs = inputs.to(self.device)
                 outputs = self.model(inputs)
                 probs = torch.sigmoid(outputs)
@@ -334,15 +380,11 @@ class ErrorAnalyzer:
                 all_preds.extend(preds.cpu().numpy())
                 all_probs.extend(probs.cpu().numpy())
                 all_labels.extend(labels.cpu().numpy())
-                all_subjects.extend(subjects)
-                all_trial_indices.extend(trial_indices.cpu().numpy())
 
         return {
             'predictions': np.array(all_preds),
             'probabilities': np.array(all_probs),
-            'labels': np.array(all_labels),
-            'subjects': all_subjects,
-            'trial_indices': np.array(all_trial_indices)
+            'labels': np.array(all_labels)
         }
 
     def analyze_errors(self):
@@ -352,7 +394,6 @@ class ErrorAnalyzer:
         preds = results['predictions']
         probs = results['probabilities']
         labels = results['labels']
-        subjects = results['subjects']
 
         # Overall metrics
         auc = roc_auc_score(labels, probs)
@@ -379,24 +420,20 @@ class ErrorAnalyzer:
         # False Positives (건강 → OA로 오판)
         fp_mask = (labels == 0) & (preds == 1)
         fp_probs = probs[fp_mask]
-        fp_subjects = [subjects[i] for i in range(len(subjects)) if fp_mask[i]]
 
         print(f"\nFalse Positives (건강 → OA 오판): {fp_mask.sum()}")
         if len(fp_probs) > 0:
             print(f"  Mean probability: {fp_probs.mean():.4f}")
             print(f"  Confidence range: [{fp_probs.min():.4f}, {fp_probs.max():.4f}]")
-            print(f"  Unique subjects: {len(set(fp_subjects))}")
 
         # False Negatives (OA → 건강으로 오판)
         fn_mask = (labels == 1) & (preds == 0)
         fn_probs = probs[fn_mask]
-        fn_subjects = [subjects[i] for i in range(len(subjects)) if fn_mask[i]]
 
         print(f"\nFalse Negatives (OA → 건강 오판): {fn_mask.sum()}")
         if len(fn_probs) > 0:
             print(f"  Mean probability: {fn_probs.mean():.4f}")
             print(f"  Confidence range: [{fn_probs.min():.4f}, {fn_probs.max():.4f}]")
-            print(f"  Unique subjects: {len(set(fn_subjects))}")
 
         # True Positives/Negatives
         tp_mask = (labels == 1) & (preds == 1)
@@ -424,14 +461,12 @@ class ErrorAnalyzer:
             'false_positives': {
                 'count': int(fp_mask.sum()),
                 'mean_prob': float(fp_probs.mean()) if len(fp_probs) > 0 else 0,
-                'prob_range': [float(fp_probs.min()), float(fp_probs.max())] if len(fp_probs) > 0 else [0, 0],
-                'unique_subjects': len(set(fp_subjects))
+                'prob_range': [float(fp_probs.min()), float(fp_probs.max())] if len(fp_probs) > 0 else [0, 0]
             },
             'false_negatives': {
                 'count': int(fn_mask.sum()),
                 'mean_prob': float(fn_probs.mean()) if len(fn_probs) > 0 else 0,
-                'prob_range': [float(fn_probs.min()), float(fn_probs.max())] if len(fn_probs) > 0 else [0, 0],
-                'unique_subjects': len(set(fn_subjects))
+                'prob_range': [float(fn_probs.min()), float(fn_probs.max())] if len(fn_probs) > 0 else [0, 0]
             },
             'true_positives': {
                 'count': int(tp_mask.sum()),
