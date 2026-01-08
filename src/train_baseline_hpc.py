@@ -67,7 +67,7 @@ class Config:
     # Tasks
     TASKS = {
         'PD_Screening': {'class0': ('HS', 'healthy'), 'class1': ('PD', 'neuro')},
-        'OA_Screening': {'class0': ('HS', 'healthy'), 'class1': ('HOA', 'ortho')},
+        'OA_Screening': {'class0': ('HS', 'healthy'), 'class1': [('HOA', 'ortho'), ('KOA', 'ortho')]},  # HOA + KOA combined
         'CVA_Detection': {'class0': ('HS', 'healthy'), 'class1': ('CVA', 'neuro')},
         'PD_vs_CVA': {'class0': ('PD', 'neuro'), 'class1': ('CVA', 'neuro')}
     }
@@ -307,17 +307,41 @@ def create_dataloaders(task_name):
     """Create train/test dataloaders with subject-wise split"""
     task_config = Config.TASKS[task_name]
 
-    # Load trials
-    cohort0, group0 = task_config['class0']
-    cohort1, group1 = task_config['class1']
+    # Load trials for class 0
+    class0_config = task_config['class0']
+    if isinstance(class0_config, list):
+        # Multiple cohorts
+        trials0 = []
+        for cohort, group in class0_config:
+            print(f"\nLoading {cohort} (class 0)...")
+            cohort_trials = get_trial_paths(cohort, group)
+            trials0.extend(cohort_trials)
+            print(f"  Found {len(cohort_trials)} trials")
+        print(f"  Total class 0: {len(trials0)} trials")
+    else:
+        # Single cohort
+        cohort0, group0 = class0_config
+        print(f"\nLoading {cohort0} (class 0)...")
+        trials0 = get_trial_paths(cohort0, group0)
+        print(f"  Found {len(trials0)} trials")
 
-    print(f"\nLoading {cohort0} (class 0)...")
-    trials0 = get_trial_paths(cohort0, group0)
-    print(f"  Found {len(trials0)} trials")
-
-    print(f"Loading {cohort1} (class 1)...")
-    trials1 = get_trial_paths(cohort1, group1)
-    print(f"  Found {len(trials1)} trials")
+    # Load trials for class 1
+    class1_config = task_config['class1']
+    if isinstance(class1_config, list):
+        # Multiple cohorts (e.g., HOA + KOA)
+        trials1 = []
+        for cohort, group in class1_config:
+            print(f"\nLoading {cohort} (class 1)...")
+            cohort_trials = get_trial_paths(cohort, group)
+            trials1.extend(cohort_trials)
+            print(f"  Found {len(cohort_trials)} trials")
+        print(f"  Total class 1: {len(trials1)} trials")
+    else:
+        # Single cohort
+        cohort1, group1 = class1_config
+        print(f"\nLoading {cohort1} (class 1)...")
+        trials1 = get_trial_paths(cohort1, group1)
+        print(f"  Found {len(trials1)} trials")
 
     # Get unique subjects
     subjects0 = list(set([t[1] for t in trials0]))
