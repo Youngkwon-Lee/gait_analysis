@@ -425,10 +425,20 @@ def analyze_task(task_name, device):
     ).to(device)
 
     checkpoint = torch.load(model_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.eval()
 
-    print(f"Model loaded (epoch {checkpoint['epoch']}, AUC: {checkpoint['best_auc']:.4f})")
+    # Handle different checkpoint formats
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        # Format: {'model_state_dict': ..., 'epoch': ..., 'best_auc': ...}
+        model.load_state_dict(checkpoint['model_state_dict'])
+        epoch = checkpoint.get('epoch', 'unknown')
+        best_auc = checkpoint.get('best_auc', 0.0)
+        print(f"Model loaded (epoch {epoch}, AUC: {best_auc:.4f})")
+    else:
+        # Format: state_dict directly
+        model.load_state_dict(checkpoint)
+        print(f"Model loaded successfully")
+
+    model.eval()
 
     # Load test data
     print("\nLoading test data...")
