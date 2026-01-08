@@ -227,10 +227,11 @@ class GaitDataset(Dataset):
                     print(f"Warning: {sensor_file} not found")
                     return None
 
-                # Load sensor data: columns = [Acc_X, Acc_Y, Acc_Z, Gyr_X, Gyr_Y, Gyr_Z, ...]
-                data = np.loadtxt(sensor_file)
-                # Take only first 6 channels (Acc + Gyr, exclude Mag)
-                sensors_data[sensor] = data[:, :6]
+                # Load sensor data: skip header row
+                # Columns: PacketCounter(0), Acc_X(1), Acc_Y(2), Acc_Z(3), Gyr_X(4), Gyr_Y(5), Gyr_Z(6), Mag_X(7), Mag_Y(8), Mag_Z(9)
+                data = np.loadtxt(sensor_file, skiprows=1)
+                # Take columns 1-6 (Acc_X, Acc_Y, Acc_Z, Gyr_X, Gyr_Y, Gyr_Z), exclude PacketCounter and Mag
+                sensors_data[sensor] = data[:, 1:7]
 
             # Stack sensors: (time, sensors, channels)
             trial_data = np.stack([sensors_data[s] for s in Config.SENSORS], axis=1)
