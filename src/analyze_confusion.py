@@ -89,7 +89,7 @@ class ConfusionAnalyzer:
         all_labels = []
 
         with torch.no_grad():
-            for inputs, labels, subjects, trial_indices in self.test_loader:
+            for inputs, labels in self.test_loader:
                 inputs = inputs.to(self.device)
                 outputs = self.model(inputs)
                 probs = torch.sigmoid(outputs)
