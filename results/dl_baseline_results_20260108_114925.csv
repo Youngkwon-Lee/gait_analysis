@@ -1,0 +1,2 @@
+task,roc_auc,balanced_acc,sensitivity,specificity,tn,fp,fn,tp
+OA_Screening,0.9742439348620804,0.8972329044612195,0.8641456582633054,0.9303201506591338,988,74,97,617
