@@ -1,0 +1,99 @@
+{
+  "task": "PD_Screening",
+  "sensor_statistics": {
+    "HE": {
+      "mean_diff": 3.062292695851194,
+      "mean_t_stat": 4.995879828983906,
+      "mean_p_value": 0.09734842450216735,
+      "num_significant": 26,
+      "total_features": 36
+    },
+    "LB": {
+      "mean_diff": 1.154265202288364,
+      "mean_t_stat": 3.5859903371393003,
+      "mean_p_value": 0.16227898721767045,
+      "num_significant": 21,
+      "total_features": 36
+    },
+    "LF": {
+      "mean_diff": 3.261868247196371,
+      "mean_t_stat": 4.991370557265326,
+      "mean_p_value": 0.06368042067596363,
+      "num_significant": 29,
+      "total_features": 36
+    },
+    "RF": {
+      "mean_diff": 3.2274648977797744,
+      "mean_t_stat": 4.334598485234949,
+      "mean_p_value": 0.06964604056825308,
+      "num_significant": 30,
+      "total_features": 36
+    }
+  },
+  "sensor_rf": {
+    "HE": {
+      "accuracy": 1.0,
+      "mean_importance": 0.02777777777777779,
+      "max_importance": 0.13562443707570176
+    },
+    "LB": {
+      "accuracy": 1.0,
+      "mean_importance": 0.027777777777777773,
+      "max_importance": 0.1748510405164439
+    },
+    "LF": {
+      "accuracy": 1.0,
+      "mean_importance": 0.027777777777777776,
+      "max_importance": 0.17089841221946525
+    },
+    "RF": {
+      "accuracy": 1.0,
+      "mean_importance": 0.027777777777777776,
+      "max_importance": 0.09545750115837509
+    }
+  },
+  "channel_importance": {
+    "Acc_X": {
+      "t_stat": 0.9339853084018411,
+      "p_value": 0.35125807141083554,
+      "effect_size": 0.12108255092981798,
+      "class0_mean": 8.851162771257053,
+      "class1_mean": 9.204786073588862
+    },
+    "Acc_Y": {
+      "t_stat": 10.954496423631692,
+      "p_value": 7.038195341971822e-23,
+      "effect_size": -1.4201490742873863,
+      "class0_mean": 4.8049958273065085,
+      "class1_mean": 1.6055978052439324
+    },
+    "Acc_Z": {
+      "t_stat": 2.4260187437169285,
+      "p_value": 0.01600981799442913,
+      "effect_size": -0.31451087661693145,
+      "class0_mean": 6.285861858917119,
+      "class1_mean": 5.129976062870537
+    },
+    "Gyr_X": {
+      "t_stat": 3.771885092879285,
+      "p_value": 0.0002045033866800334,
+      "effect_size": -0.4889899924030507,
+      "class0_mean": 1.133464060563377,
+      "class1_mean": 0.6025379359678842
+    },
+    "Gyr_Y": {
+      "t_stat": 3.4279665356578692,
+      "p_value": 0.0007164443827359673,
+      "effect_size": -0.44440413452512884,
+      "class0_mean": 2.0937890288667225,
+      "class1_mean": 1.328532246282255
+    },
+    "Gyr_Z": {
+      "t_stat": 3.190022561699574,
+      "p_value": 0.0016138683987017455,
+      "effect_size": -0.41355690054181554,
+      "class0_mean": 1.0674882566745472,
+      "class1_mean": 0.5996576422446244
+    }
+  }
+}

@@ -1,0 +1,10 @@
+Task,Version,AUC,Bal_Acc,Sensitivity,Specificity,Dataset
+OA Screening,V1 (HOA only),0.9083,0.7863,0.6681,0.9044,HS vs HOA only
+OA Screening,V2 (HOA+KOA),0.9742,0.8972,0.8641,0.9303,HS vs (HOA+KOA)
+OA Screening,Baseline (Paper),0.9900,0.9420,0.9260,0.9580,HS vs (HOA+KOA)
+PD Screening,우리 결과,0.9631,0.7899,0.5952,0.9846,Same as paper
+PD Screening,Baseline (Paper),0.9900,0.9530,0.9630,0.9430,Same as paper
+CVA Detection,우리 결과,0.9864,0.9364,0.9585,0.9144,Same as paper
+CVA Detection,Baseline (Paper),0.9930,0.9520,0.9290,0.9760,Same as paper
+PD vs CVA,우리 결과,0.9335,0.8803,0.9420,0.8186,Same as paper
+PD vs CVA,Baseline (Paper),0.6560,0.6320,0.5860,0.6790,Same as paper
