@@ -596,12 +596,10 @@ Overall Performance:
 False Positives (건강 → OA 오판):
   • Count: {analysis_results['false_positives']['count']}
   • Mean Probability: {analysis_results['false_positives']['mean_prob']:.4f}
-  • Unique Subjects: {analysis_results['false_positives']['unique_subjects']}
 
 False Negatives (OA → 건강 오판):
   • Count: {analysis_results['false_negatives']['count']}
   • Mean Probability: {analysis_results['false_negatives']['mean_prob']:.4f}
-  • Unique Subjects: {analysis_results['false_negatives']['unique_subjects']}
 
 Key Insights:
   1. 어느 에러가 더 많은가? {'FP' if analysis_results['false_positives']['count'] > analysis_results['false_negatives']['count'] else 'FN'}
