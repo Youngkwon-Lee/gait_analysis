@@ -71,7 +71,7 @@ class ConfusionAnalyzer:
         _, _, _, test_trials, test_labels, test_subjects = load_oa_screening_data()
 
         self.test_dataset = GaitDataset(
-            test_trials, test_labels, test_subjects,
+            test_trials, test_labels,
             Config.WINDOW_SIZE, Config.STRIDE
         )
 
