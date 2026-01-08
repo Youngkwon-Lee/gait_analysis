@@ -178,11 +178,14 @@ def get_trial_paths(cohort, group):
     for meta_file in cohort_path.rglob("*_meta.json"):
         trial_path = meta_file.parent
 
-        with open(meta_file, 'r') as f:
-            meta = json.load(f)
-
-        subject = meta.get('subject', 'unknown')
-        trials.append((trial_path, subject))
+        try:
+            with open(meta_file, 'r') as f:
+                meta = json.load(f)
+            subject = meta.get('subject', 'unknown')
+            trials.append((trial_path, subject))
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"Warning: Skipping {meta_file} - corrupted or empty JSON: {e}")
+            continue
 
     return trials
 
