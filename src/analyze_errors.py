@@ -206,7 +206,13 @@ class GaitDataset(Dataset):
 
             # Sliding window
             for i in range(0, trial_data.shape[0] - window_size + 1, stride):
-                window = trial_data[i:i + window_size]
+                window = trial_data[i:i + window_size]  # (window_size, 4, 6)
+
+                # Normalize per window (same as train_baseline_hpc.py)
+                mean = window.mean(axis=0, keepdims=True)
+                std = window.std(axis=0, keepdims=True) + 1e-8
+                window = (window - mean) / std
+
                 self.samples.append(window)
                 self.labels.append(label)
 
