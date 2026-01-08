@@ -373,6 +373,19 @@ class ErrorAnalyzer:
 
         print(f"Test dataset: {len(self.test_dataset)} windows")
 
+    def _get_error_type(self, pred, label):
+        """Classify error type"""
+        if pred == label:
+            if label == 1:
+                return 'TP'  # True Positive
+            else:
+                return 'TN'  # True Negative
+        else:
+            if label == 0 and pred == 1:
+                return 'FP'  # False Positive
+            else:
+                return 'FN'  # False Negative
+
     def get_predictions(self):
         """Get all predictions on test set"""
         print("\nGetting predictions...")
@@ -405,6 +418,18 @@ class ErrorAnalyzer:
         preds = results['predictions']
         probs = results['probabilities']
         labels = results['labels']
+
+        # Save detailed predictions for further analysis
+        detailed_predictions = []
+        for i in range(len(preds)):
+            detailed_predictions.append({
+                'window_id': i,
+                'prediction': int(preds[i]),
+                'probability': float(probs[i]),
+                'label': int(labels[i]),
+                'correct': int(preds[i]) == int(labels[i]),
+                'error_type': self._get_error_type(int(preds[i]), int(labels[i]))
+            })
 
         # Overall metrics
         auc = roc_auc_score(labels, probs)
@@ -487,6 +512,7 @@ class ErrorAnalyzer:
                 'count': int(tn_mask.sum()),
                 'mean_prob': float(tn_probs.mean()) if len(tn_probs) > 0 else 0
             },
+            'detailed_predictions': detailed_predictions,
             'raw_results': results
         }
 
