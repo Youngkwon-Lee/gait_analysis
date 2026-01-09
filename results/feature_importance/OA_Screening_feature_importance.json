@@ -1,0 +1,385 @@
+{
+  "task": "OA_Screening",
+  "total_windows": 1040,
+  "ablation_results": {
+    "all": {
+      "accuracy": 0.9951923076923077,
+      "balanced_accuracy": 0.9838267543859649,
+      "auc": 0.9997858415570176
+    },
+    "without_HE_Acc_X": {
+      "accuracy": 0.9730769230769231,
+      "balanced_accuracy": 0.890625,
+      "auc": 0.9984751918859649
+    },
+    "without_HE_Acc_Y": {
+      "accuracy": 0.9701923076923077,
+      "balanced_accuracy": 0.87890625,
+      "auc": 0.9986465186403509
+    },
+    "without_HE_Acc_Z": {
+      "accuracy": 0.9961538461538462,
+      "balanced_accuracy": 0.9877330043859649,
+      "auc": 0.9995631167763158
+    },
+    "without_HE_Gyr_X": {
+      "accuracy": 0.9846153846153847,
+      "balanced_accuracy": 0.9375,
+      "auc": 0.9995288514254387
+    },
+    "without_HE_Gyr_Y": {
+      "accuracy": 0.9951923076923077,
+      "balanced_accuracy": 0.9905427631578947,
+      "auc": 0.9996573464912281
+    },
+    "without_HE_Gyr_Z": {
+      "accuracy": 0.9942307692307693,
+      "balanced_accuracy": 0.9799205043859649,
+      "auc": 0.9996059484649122
+    },
+    "without_LB_Acc_X": {
+      "accuracy": 0.9903846153846154,
+      "balanced_accuracy": 0.9676535087719298,
+      "auc": 0.9990063048245614
+    },
+    "without_LB_Acc_Y": {
+      "accuracy": 0.9923076923076923,
+      "balanced_accuracy": 0.9754660087719298,
+      "auc": 0.9996659128289475
+    },
+    "without_LB_Acc_Z": {
+      "accuracy": 0.9855769230769231,
+      "balanced_accuracy": 0.9716282894736843,
+      "auc": 0.9989292077850878
+    },
+    "without_LB_Gyr_X": {
+      "accuracy": 0.9971153846153846,
+      "balanced_accuracy": 0.9916392543859649,
+      "auc": 0.999914336622807
+    },
+    "without_LB_Gyr_Y": {
+      "accuracy": 0.9932692307692308,
+      "balanced_accuracy": 0.9860882675438596,
+      "auc": 0.999597382127193
+    },
+    "without_LB_Gyr_Z": {
+      "accuracy": 0.9942307692307693,
+      "balanced_accuracy": 0.9832785087719298,
+      "auc": 0.9996316474780702
+    },
+    "without_LF_Acc_X": {
+      "accuracy": 0.9923076923076923,
+      "balanced_accuracy": 0.96875,
+      "auc": 0.9992204632675439
+    },
+    "without_LF_Acc_Y": {
+      "accuracy": 0.9961538461538462,
+      "balanced_accuracy": 0.9877330043859649,
+      "auc": 0.999828673245614
+    },
+    "without_LF_Acc_Z": {
+      "accuracy": 0.9942307692307693,
+      "balanced_accuracy": 0.9832785087719298,
+      "auc": 0.9988178453947368
+    },
+    "without_LF_Gyr_X": {
+      "accuracy": 0.9961538461538462,
+      "balanced_accuracy": 0.9877330043859649,
+      "auc": 0.9997087445175439
+    },
+    "without_LF_Gyr_Y": {
+      "accuracy": 0.9961538461538462,
+      "balanced_accuracy": 0.984375,
+      "auc": 0.999768708881579
+    },
+    "without_LF_Gyr_Z": {
+      "accuracy": 0.9961538461538462,
+      "balanced_accuracy": 0.9877330043859649,
+      "auc": 0.9996744791666667
+    },
+    "without_RF_Acc_X": {
+      "accuracy": 0.9942307692307693,
+      "balanced_accuracy": 0.9832785087719298,
+      "auc": 0.9996573464912281
+    },
+    "without_RF_Acc_Y": {
+      "accuracy": 0.9875,
+      "balanced_accuracy": 0.9794407894736843,
+      "auc": 0.999109100877193
+    },
+    "without_RF_Acc_Z": {
+      "accuracy": 0.9884615384615385,
+      "balanced_accuracy": 0.953125,
+      "auc": 0.999280427631579
+    },
+    "without_RF_Gyr_X": {
+      "accuracy": 0.9817307692307692,
+      "balanced_accuracy": 0.92578125,
+      "auc": 0.999571683114035
+    },
+    "without_RF_Gyr_Y": {
+      "accuracy": 0.9951923076923077,
+      "balanced_accuracy": 0.9838267543859649,
+      "auc": 0.9997344435307017
+    },
+    "without_RF_Gyr_Z": {
+      "accuracy": 0.9951923076923077,
+      "balanced_accuracy": 0.9871847587719298,
+      "auc": 0.9996402138157895
+    },
+    "acc_only": {
+      "accuracy": 0.8778846153846154,
+      "balanced_accuracy": 0.5408442982456141,
+      "auc": 0.9367718612938597
+    },
+    "gyr_only": {
+      "accuracy": 0.8836538461538461,
+      "balanced_accuracy": 0.567639802631579,
+      "auc": 0.8303865131578948
+    },
+    "HE_acc_only": {
+      "accuracy": 0.8538461538461538,
+      "balanced_accuracy": 0.6278782894736843,
+      "auc": 0.5675198739035088
+    },
+    "HE_gyr_only": {
+      "accuracy": 0.8721153846153846,
+      "balanced_accuracy": 0.5039747807017544,
+      "auc": 0.6056914747807018
+    },
+    "LB_acc_only": {
+      "accuracy": 0.6567307692307692,
+      "balanced_accuracy": 0.5658580043859649,
+      "auc": 0.6279211211622807
+    },
+    "LB_gyr_only": {
+      "accuracy": 0.7163461538461539,
+      "balanced_accuracy": 0.5797012061403508,
+      "auc": 0.6916889391447368
+    },
+    "LF_acc_only": {
+      "accuracy": 0.8298076923076924,
+      "balanced_accuracy": 0.540296052631579,
+      "auc": 0.8053214089912281
+    },
+    "LF_gyr_only": {
+      "accuracy": 0.6490384615384616,
+      "balanced_accuracy": 0.7528782894736843,
+      "auc": 0.801500822368421
+    },
+    "RF_acc_only": {
+      "accuracy": 0.864423076923077,
+      "balanced_accuracy": 0.7245751096491229,
+      "auc": 0.8415827165570176
+    },
+    "RF_gyr_only": {
+      "accuracy": 0.2221153846153846,
+      "balanced_accuracy": 0.5363212719298246,
+      "auc": 0.3342584978070176
+    }
+  },
+  "channel_importance": {
+    "HE_Acc_X": {
+      "sensor": "HE",
+      "channel": "Acc_X",
+      "importance": 0.001310649671052655,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9984751918859649,
+      "relative_drop": 0.13109304178698045
+    },
+    "HE_Acc_Y": {
+      "sensor": "HE",
+      "channel": "Acc_Y",
+      "importance": 0.0011393229166666297,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9986465186403509,
+      "relative_drop": 0.11395669645534326
+    },
+    "HE_Acc_Z": {
+      "sensor": "HE",
+      "channel": "Acc_Z",
+      "importance": 0.00022272478070173296,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9995631167763158,
+      "relative_drop": 0.022277248931118317
+    },
+    "HE_Gyr_X": {
+      "sensor": "HE",
+      "channel": "Gyr_X",
+      "importance": 0.0002569901315788714,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9995288514254387,
+      "relative_drop": 0.025704517997439086
+    },
+    "HE_Gyr_Y": {
+      "sensor": "HE",
+      "channel": "Gyr_Y",
+      "importance": 0.00012849506578949121,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9996573464912281,
+      "relative_drop": 0.012852258998725094
+    },
+    "HE_Gyr_Z": {
+      "sensor": "HE",
+      "channel": "Gyr_Z",
+      "importance": 0.0001798930921053099,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9996059484649122,
+      "relative_drop": 0.017993162598217354
+    },
+    "LB_Acc_X": {
+      "sensor": "LB",
+      "channel": "Acc_X",
+      "importance": 0.0007795367324561209,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9990063048245614,
+      "relative_drop": 0.07797037125891966
+    },
+    "LB_Acc_Y": {
+      "sensor": "LB",
+      "channel": "Acc_Y",
+      "importance": 0.00011992872807009558,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9996659128289475,
+      "relative_drop": 0.011995441732133797
+    },
+    "LB_Acc_Z": {
+      "sensor": "LB",
+      "channel": "Acc_Z",
+      "importance": 0.0008566337719297934,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9989292077850878,
+      "relative_drop": 0.08568172665815249
+    },
+    "LB_Gyr_X": {
+      "sensor": "LB",
+      "channel": "Gyr_X",
+      "importance": -0.00012849506578949121,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.999914336622807,
+      "relative_drop": -0.012852258998725094
+    },
+    "LB_Gyr_Y": {
+      "sensor": "LB",
+      "channel": "Gyr_Y",
+      "importance": 0.00018845942982459452,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.999597382127193,
+      "relative_drop": 0.01884997986479755
+    },
+    "LB_Gyr_Z": {
+      "sensor": "LB",
+      "channel": "Gyr_Z",
+      "importance": 0.00015419407894734505,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9996316474780702,
+      "relative_drop": 0.015422710798465673
+    },
+    "LF_Acc_X": {
+      "sensor": "LF",
+      "channel": "Acc_X",
+      "importance": 0.0005653782894736725,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9992204632675439,
+      "relative_drop": 0.05654993959438154
+    },
+    "LF_Acc_Y": {
+      "sensor": "LF",
+      "channel": "Acc_Y",
+      "importance": -4.2831688596423056e-05,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.999828673245614,
+      "relative_drop": -0.004284086332900962
+    },
+    "LF_Acc_Z": {
+      "sensor": "LF",
+      "channel": "Acc_Z",
+      "importance": 0.0009679961622807154,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9988178453947368,
+      "relative_drop": 0.09682035112371722
+    },
+    "LF_Gyr_X": {
+      "sensor": "LF",
+      "channel": "Gyr_X",
+      "importance": 7.709703947367252e-05,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9997087445175439,
+      "relative_drop": 0.0077113553992328365
+    },
+    "LF_Gyr_Y": {
+      "sensor": "LF",
+      "channel": "Gyr_Y",
+      "importance": 1.7132675438569223e-05,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.999768708881579,
+      "relative_drop": 0.0017136345331603849
+    },
+    "LF_Gyr_Z": {
+      "sensor": "LF",
+      "channel": "Gyr_Z",
+      "importance": 0.00011136239035081097,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9996744791666667,
+      "relative_drop": 0.011138624465553606
+    },
+    "RF_Acc_X": {
+      "sensor": "RF",
+      "channel": "Acc_X",
+      "importance": 0.00012849506578949121,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9996573464912281,
+      "relative_drop": 0.012852258998725094
+    },
+    "RF_Acc_Y": {
+      "sensor": "RF",
+      "channel": "Acc_Y",
+      "importance": 0.0006767406798245945,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.999109100877193,
+      "relative_drop": 0.06768856405994625
+    },
+    "RF_Acc_Z": {
+      "sensor": "RF",
+      "channel": "Acc_Z",
+      "importance": 0.0005054139254385692,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.999280427631579,
+      "relative_drop": 0.05055221872830908
+    },
+    "RF_Gyr_X": {
+      "sensor": "RF",
+      "channel": "Gyr_X",
+      "importance": 0.00021415844298255937,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.999571683114035,
+      "relative_drop": 0.02142043166454923
+    },
+    "RF_Gyr_Y": {
+      "sensor": "RF",
+      "channel": "Gyr_Y",
+      "importance": 5.139802631581869e-05,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9997344435307017,
+      "relative_drop": 0.005140903599492259
+    },
+    "RF_Gyr_Z": {
+      "sensor": "RF",
+      "channel": "Gyr_Z",
+      "importance": 0.00014562774122806044,
+      "baseline_auc": 0.9997858415570176,
+      "without_auc": 0.9996402138157895,
+      "relative_drop": 0.014565893531885478
+    }
+  },
+  "sensor_type_comparison": {
+    "acc_only": {
+      "auc": 0.9367718612938597,
+      "accuracy": 0.8778846153846154
+    },
+    "gyr_only": {
+      "auc": 0.8303865131578948,
+      "accuracy": 0.8836538461538461
+    }
+  }
+}
