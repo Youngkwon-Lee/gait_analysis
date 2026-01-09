@@ -715,7 +715,10 @@ def main():
         print(f"\nFN Windows:")
         for r in results:
             if r['error_type'] == 'FN':
-                print(f"  Window {r['window_id']}: {r['cohort']} (prob={r['probability']:.4f})")
+                # Extract cohort from trial_path (e.g., .../healthy/HS/... or .../ortho/HOA/...)
+                trial_path = Path(r['trial_path'])
+                cohort_name = trial_path.parts[-2] if len(trial_path.parts) > 2 else 'unknown'
+                print(f"  Window {r['window_id']}: {cohort_name}, Subject {r['subject']} (prob={r['probability']:.4f})")
                 print(f"    Gait phases: HS={r['gait_phase_probabilities']['heel_strike']:.3f}, "
                       f"MS={r['gait_phase_probabilities']['mid_stance']:.3f}, "
                       f"TO={r['gait_phase_probabilities']['toe_off']:.3f}, "
@@ -726,7 +729,10 @@ def main():
         print(f"\nFP Windows:")
         for r in results:
             if r['error_type'] == 'FP':
-                print(f"  Window {r['window_id']}: {r['cohort']} (prob={r['probability']:.4f})")
+                # Extract cohort from trial_path
+                trial_path = Path(r['trial_path'])
+                cohort_name = trial_path.parts[-2] if len(trial_path.parts) > 2 else 'unknown'
+                print(f"  Window {r['window_id']}: {cohort_name}, Subject {r['subject']} (prob={r['probability']:.4f})")
                 print(f"    Gait phases: HS={r['gait_phase_probabilities']['heel_strike']:.3f}, "
                       f"MS={r['gait_phase_probabilities']['mid_stance']:.3f}, "
                       f"TO={r['gait_phase_probabilities']['toe_off']:.3f}, "
