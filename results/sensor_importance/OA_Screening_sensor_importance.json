@@ -1,0 +1,107 @@
+{
+  "task": "OA_Screening",
+  "total_windows": 966,
+  "ablation_results": {
+    "all": {
+      "accuracy": 0.9886128364389234,
+      "balanced_accuracy": 0.9844618633188894,
+      "auc": 0.9991721377185583
+    },
+    "without_HE": {
+      "accuracy": 0.9648033126293996,
+      "balanced_accuracy": 0.9602154537785625,
+      "auc": 0.9933456639403101
+    },
+    "without_LB": {
+      "accuracy": 0.9720496894409938,
+      "balanced_accuracy": 0.9512635379061372,
+      "auc": 0.9977941137943862
+    },
+    "without_LF": {
+      "accuracy": 0.9699792960662525,
+      "balanced_accuracy": 0.9573677123230968,
+      "auc": 0.9950433055807348
+    },
+    "without_RF": {
+      "accuracy": 0.974120082815735,
+      "balanced_accuracy": 0.9613498346895255,
+      "auc": 0.9971810765353439
+    },
+    "combo_HE+LB": {
+      "accuracy": 0.937888198757764,
+      "balanced_accuracy": 0.8960142098892865,
+      "auc": 0.9884151676945083
+    },
+    "combo_HE+LF": {
+      "accuracy": 0.8985507246376812,
+      "balanced_accuracy": 0.8241840578874842,
+      "auc": 0.9887400250454539
+    },
+    "combo_HE+RF": {
+      "accuracy": 0.9296066252587992,
+      "balanced_accuracy": 0.8837325061696699,
+      "auc": 0.9797173741046774
+    },
+    "combo_LB+LF": {
+      "accuracy": 0.9513457556935818,
+      "balanced_accuracy": 0.9302735613273043,
+      "auc": 0.9854652533625355
+    },
+    "combo_LB+RF": {
+      "accuracy": 0.9337474120082816,
+      "balanced_accuracy": 0.9211749356834842,
+      "auc": 0.9719365165860636
+    },
+    "combo_LF+RF": {
+      "accuracy": 0.9316770186335404,
+      "balanced_accuracy": 0.8970568971931276,
+      "auc": 0.9867280053234688
+    },
+    "only_HE": {
+      "accuracy": 0.8105590062111802,
+      "balanced_accuracy": 0.6718338197460872,
+      "auc": 0.9258120123864964
+    },
+    "only_LB": {
+      "accuracy": 0.8612836438923396,
+      "balanced_accuracy": 0.777551309122728,
+      "auc": 0.9272424326575951
+    },
+    "only_LF": {
+      "accuracy": 0.8519668737060041,
+      "balanced_accuracy": 0.753750268531278,
+      "auc": 0.9522983657579394
+    },
+    "only_RF": {
+      "accuracy": 0.84472049689441,
+      "balanced_accuracy": 0.7896863030709499,
+      "auc": 0.9228254206116749
+    }
+  },
+  "sensor_importance": {
+    "HE": {
+      "importance": 0.005826473778248187,
+      "baseline_auc": 0.9991721377185583,
+      "without_auc": 0.9933456639403101,
+      "relative_drop": 0.5831301292640085
+    },
+    "LB": {
+      "importance": 0.0013780239241720782,
+      "baseline_auc": 0.9991721377185583,
+      "without_auc": 0.9977941137943862,
+      "relative_drop": 0.13791656834212412
+    },
+    "LF": {
+      "importance": 0.004128832137823446,
+      "baseline_auc": 0.9991721377185583,
+      "without_auc": 0.9950433055807348,
+      "relative_drop": 0.41322530742810154
+    },
+    "RF": {
+      "importance": 0.0019910611832143488,
+      "baseline_auc": 0.9991721377185583,
+      "without_auc": 0.9971810765353439,
+      "relative_drop": 0.19927108733842425
+    }
+  }
+}
