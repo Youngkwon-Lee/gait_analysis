@@ -34,17 +34,26 @@ class Config:
     OUTPUT_PATH.mkdir(exist_ok=True, parents=True)
 
     # Data parameters
+    SENSORS = ['HE', 'LB', 'LF', 'RF']  # 4 IMU sensors
+    CHANNELS = ['Acc_X', 'Acc_Y', 'Acc_Z', 'Gyr_X', 'Gyr_Y', 'Gyr_Z']  # NO Magnetometer
     WINDOW_SIZE = 300  # 3 seconds @ 100Hz
     OVERLAP = 150  # 50% overlap
+    SEED = 42
 
     # Temporal analysis parameters
     SUB_WINDOW_SIZE = 50  # 0.5 seconds @ 100Hz
     SUB_WINDOW_STRIDE = 25  # 0.25 second stride
 
-    # Model parameters
-    NUM_SENSORS = 4
-    NUM_CHANNELS = 9
-    NUM_CLASSES = 1
+    # Tasks
+    TASKS = {
+        'OA_Screening': {
+            'class0': ('HS', 'healthy'),
+            'class1': [('HOA', 'ortho'), ('KOA', 'ortho')]
+        }
+    }
+
+    # Device
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # ============================================================================
 # Model Architecture (EXACT COPY from train_baseline_hpc.py)
@@ -149,124 +158,182 @@ class MultiStreamAttentionCNN(nn.Module):
         return x.squeeze(-1)
 
 # ============================================================================
-# Dataset
+# Dataset (EXACT COPY from analyze_errors.py)
 # ============================================================================
 
+from sklearn.model_selection import train_test_split
+
+def get_trial_paths(cohort, group):
+    """Get all trial paths for a cohort"""
+    cohort_path = Config.BASE_PATH / group / cohort
+
+    if not cohort_path.exists():
+        print(f"Warning: {cohort_path} does not exist")
+        return []
+
+    trials = []
+    for meta_file in cohort_path.rglob("*_meta.json"):
+        trial_path = meta_file.parent
+
+        try:
+            with open(meta_file, 'r') as f:
+                meta = json.load(f)
+            subject = meta.get('subject', 'unknown')
+            trials.append((trial_path, subject))
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"Warning: Skipping {meta_file} - corrupted or empty JSON: {e}")
+            continue
+
+    return trials
+
+
 class GaitDataset(Dataset):
-    """Gait dataset for temporal analysis"""
-    def __init__(self, data_path, task_name='OA_Screening', split='test'):
-        self.data_path = Path(data_path)
-        self.task_name = task_name
-        self.split = split
+    """Gait signals dataset (same as train_baseline_hpc.py)"""
 
-        # Task configuration
-        self.task_config = {
-            'OA_Screening': {
-                'positive': ['Pathological'],
-                'negative': ['Healthy']
-            }
-        }
+    def __init__(self, trial_paths, labels, subjects=None, window_size=300, stride=150, augment=False):
+        self.window_size = window_size
+        self.stride = stride
+        self.augment = augment
 
-        self.sensors = ['L-ANKLE', 'L-FOOT', 'R-ANKLE', 'R-FOOT']
-        self.data, self.labels, self.metadata = self._load_data()
+        # Store metadata for each window
+        self.window_metadata = []
 
-        print(f"\n[Dataset] {split} set: {len(self.data)} windows")
-        print(f"  Positive (OA): {sum(self.labels)}")
-        print(f"  Negative (Healthy): {len(self.labels) - sum(self.labels)}")
+        # Load all trials and create sliding windows
+        self.samples = []
+        self.labels = []
 
-    def _load_data(self):
-        """Load data with metadata tracking"""
-        all_data = []
-        all_labels = []
-        all_metadata = []
+        for idx, (trial_path, label) in enumerate(zip(trial_paths, labels)):
+            trial_data = self._load_trial_data(trial_path)
+            if trial_data is None:
+                continue
 
-        config = self.task_config[self.task_name]
+            # Sliding window
+            for i in range(0, trial_data.shape[0] - window_size + 1, stride):
+                window = trial_data[i:i + window_size]  # (window_size, 4, 6)
 
-        # Process each group
-        for group_type, groups in [('positive', config['positive']),
-                                     ('negative', config['negative'])]:
-            label = 1 if group_type == 'positive' else 0
+                # Normalize per window (same as train_baseline_hpc.py)
+                mean = window.mean(axis=0, keepdims=True)
+                std = window.std(axis=0, keepdims=True) + 1e-8
+                window = (window - mean) / std
 
-            for group in groups:
-                group_path = self.data_path / group
-                if not group_path.exists():
-                    continue
+                self.samples.append(window)
+                self.labels.append(label)
 
-                cohorts = sorted([d for d in group_path.iterdir() if d.is_dir()])
+                # Store metadata
+                self.window_metadata.append({
+                    'trial_idx': idx,
+                    'trial_path': str(trial_path),
+                    'subject': subjects[idx] if subjects else 'unknown',
+                    'window_start': i,
+                    'label': label
+                })
 
-                # Split: 60% train, 20% val, 20% test
-                n_cohorts = len(cohorts)
-                train_end = int(0.6 * n_cohorts)
-                val_end = int(0.8 * n_cohorts)
+        self.samples = np.array(self.samples, dtype=np.float32)
+        self.labels = np.array(self.labels, dtype=np.float32)
 
-                if self.split == 'train':
-                    cohorts = cohorts[:train_end]
-                elif self.split == 'val':
-                    cohorts = cohorts[train_end:val_end]
-                else:  # test
-                    cohorts = cohorts[val_end:]
+        print(f"  Created {len(self.samples)} windows from {len(trial_paths)} trials")
 
-                # Load cohort data
-                for cohort_path in cohorts:
-                    cohort_name = cohort_path.name
+    def _load_trial_data(self, trial_path):
+        """Load trial data from directory"""
+        try:
+            # Load each sensor's data
+            sensors_data = {}
+            for sensor in Config.SENSORS:
+                # Correct filename pattern: {trial_name}_raw_data_{sensor}.txt
+                sensor_file = trial_path / f"{trial_path.name}_raw_data_{sensor}.txt"
+                if not sensor_file.exists():
+                    return None
 
-                    # Load sensor data (6 channels per sensor: Acc + Gyr, NO Mag)
-                    sensor_data = []
-                    for sensor in self.sensors:
-                        file_path = cohort_path / f'_raw_data_{sensor}.txt'
-                        if not file_path.exists():
-                            break
-                        data = np.loadtxt(file_path, skiprows=1)
-                        # Take only first 6 columns (Acc_X/Y/Z, Gyr_X/Y/Z)
-                        data = data[:, :6]
-                        sensor_data.append(data)
+                # Load sensor data: skip header row
+                # Columns: PacketCounter(0), Acc_X(1), Acc_Y(2), Acc_Z(3), Gyr_X(4), Gyr_Y(5), Gyr_Z(6), Mag_X(7), Mag_Y(8), Mag_Z(9)
+                data = np.loadtxt(sensor_file, skiprows=1)
+                # Take columns 1-6 (Acc_X, Acc_Y, Acc_Z, Gyr_X, Gyr_Y, Gyr_Z), exclude PacketCounter and Mag
+                sensors_data[sensor] = data[:, 1:7]
 
-                    if len(sensor_data) != len(self.sensors):
-                        continue
+            # Stack sensors: (time, sensors, channels)
+            trial_data = np.stack([sensors_data[s] for s in Config.SENSORS], axis=1)
+            return trial_data
 
-                    sensor_data = np.array(sensor_data)
-
-                    # Create windows
-                    num_samples = sensor_data.shape[1]
-                    windows = self._create_windows(sensor_data, num_samples)
-
-                    # Add to dataset with metadata
-                    for window_idx, window in enumerate(windows):
-                        all_data.append(window)
-                        all_labels.append(label)
-                        all_metadata.append({
-                            'group': group,
-                            'cohort': cohort_name,
-                            'window_idx': window_idx,
-                            'label': label
-                        })
-
-        return np.array(all_data), np.array(all_labels), all_metadata
-
-    def _create_windows(self, sensor_data, num_samples):
-        """Create sliding windows"""
-        windows = []
-        window_size = Config.WINDOW_SIZE
-        overlap = Config.OVERLAP
-        stride = window_size - overlap
-
-        for start in range(0, num_samples - window_size + 1, stride):
-            end = start + window_size
-            window = sensor_data[:, :, start:end]  # (4, 6, 300)
-
-            # Normalize per window
-            window = (window - window.mean(axis=2, keepdims=True)) / (window.std(axis=2, keepdims=True) + 1e-8)
-
-            # Shape: (4 sensors, 6 channels, 300 samples)
-            windows.append(window)
-
-        return windows
+        except Exception as e:
+            print(f"Warning: Failed to load {trial_path}: {e}")
+            return None
 
     def __len__(self):
-        return len(self.data)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        return torch.FloatTensor(self.data[idx]), torch.FloatTensor([self.labels[idx]]), self.metadata[idx]
+        x = self.samples[idx]  # (window_size, 4, 6)
+        y = self.labels[idx]
+        metadata = self.window_metadata[idx]
+
+        # Transpose to (sensors, channels, time) for CNN
+        x = np.transpose(x, (1, 2, 0))  # (4, 6, window_size)
+
+        if self.augment and np.random.rand() > 0.5:
+            # Random time shift
+            shift = np.random.randint(-20, 20)
+            x = np.roll(x, shift, axis=2)
+
+            # Random noise
+            noise = np.random.randn(*x.shape).astype(np.float32) * 0.01
+            x = x + noise
+
+        return torch.tensor(x), torch.tensor(y, dtype=torch.float32), metadata
+
+
+def load_oa_screening_data():
+    """Load OA Screening data (same as train_baseline_hpc.py)"""
+    task_config = Config.TASKS['OA_Screening']
+
+    # Load trials for class 0 (HS)
+    class0_config = task_config['class0']
+    cohort0, group0 = class0_config
+    print(f"\nLoading {cohort0} (class 0)...")
+    trials0 = get_trial_paths(cohort0, group0)
+    print(f"  Found {len(trials0)} trials")
+
+    # Load trials for class 1 (HOA + KOA)
+    class1_config = task_config['class1']
+    trials1 = []
+    for cohort, group in class1_config:
+        print(f"\nLoading {cohort} (class 1)...")
+        cohort_trials = get_trial_paths(cohort, group)
+        trials1.extend(cohort_trials)
+        print(f"  Found {len(cohort_trials)} trials")
+    print(f"  Total class 1: {len(trials1)} trials")
+
+    # Get unique subjects
+    subjects0 = list(set([t[1] for t in trials0]))
+    subjects1 = list(set([t[1] for t in trials1]))
+
+    # Subject-wise split
+    train_subjects0, test_subjects0 = train_test_split(
+        subjects0, test_size=0.2, random_state=Config.SEED
+    )
+    train_subjects1, test_subjects1 = train_test_split(
+        subjects1, test_size=0.2, random_state=Config.SEED
+    )
+
+    # Split trials by subject
+    train_trials0 = [t for t in trials0 if t[1] in train_subjects0]
+    test_trials0 = [t for t in trials0 if t[1] in test_subjects0]
+    train_trials1 = [t for t in trials1 if t[1] in train_subjects1]
+    test_trials1 = [t for t in trials1 if t[1] in test_subjects1]
+
+    # Combine train and test
+    train_paths = [t[0] for t in train_trials0 + train_trials1]
+    train_labels = [0] * len(train_trials0) + [1] * len(train_trials1)
+    train_subjects = [t[1] for t in train_trials0 + train_trials1]
+
+    test_paths = [t[0] for t in test_trials0 + test_trials1]
+    test_labels = [0] * len(test_trials0) + [1] * len(test_trials1)
+    test_subjects = [t[1] for t in test_trials0 + test_trials1]
+
+    print(f"\nTrain: {len(train_paths)} trials, {len(set(train_subjects))} subjects")
+    print(f"Test: {len(test_paths)} trials, {len(set(test_subjects))} subjects")
+
+    return train_paths, train_labels, train_subjects, \
+           test_paths, test_labels, test_subjects
 
 # ============================================================================
 # Temporal Analyzer
@@ -301,7 +368,16 @@ class TemporalAnalyzer:
         print(f"[Model] Loaded successfully, using {self.device}")
 
         # Load test dataset
-        self.dataset = GaitDataset(Config.BASE_PATH, task_name=task_name, split='test')
+        print("\n[Dataset] Loading test data...")
+        _, _, _, test_paths, test_labels, test_subjects = load_oa_screening_data()
+        self.dataset = GaitDataset(
+            test_paths,
+            test_labels,
+            test_subjects,
+            window_size=Config.WINDOW_SIZE,
+            stride=Config.OVERLAP,
+            augment=False
+        )
         self.loader = DataLoader(self.dataset, batch_size=1, shuffle=False)
 
     def analyze_temporal_patterns(self):
