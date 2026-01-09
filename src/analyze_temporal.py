@@ -47,79 +47,106 @@ class Config:
     NUM_CLASSES = 1
 
 # ============================================================================
-# Model Architecture (copied from train_baseline_hpc.py)
+# Model Architecture (EXACT COPY from train_baseline_hpc.py)
 # ============================================================================
 
-class StreamAttention(nn.Module):
-    """Attention mechanism for sensor streams"""
-    def __init__(self, in_channels):
+import torch.nn.functional as F
+
+class SensorStream(nn.Module):
+    """CNN stream for single sensor"""
+
+    def __init__(self, in_channels=6, hidden_dim=64, dropout=0.3):
         super().__init__()
-        self.attention = nn.Sequential(
-            nn.AdaptiveAvgPool1d(1),
-            nn.Flatten(),
-            nn.Linear(in_channels, in_channels // 4),
-            nn.ReLU(),
-            nn.Linear(in_channels // 4, in_channels),
-            nn.Sigmoid()
-        )
+
+        self.conv1 = nn.Conv1d(in_channels, hidden_dim, kernel_size=7, padding=3)
+        self.bn1 = nn.BatchNorm1d(hidden_dim)
+
+        self.conv2 = nn.Conv1d(hidden_dim, hidden_dim, kernel_size=5, padding=2)
+        self.bn2 = nn.BatchNorm1d(hidden_dim)
+
+        self.conv3 = nn.Conv1d(hidden_dim, hidden_dim, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm1d(hidden_dim)
+
+        self.pool = nn.AdaptiveAvgPool1d(1)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        batch, channels, length = x.shape
-        weights = self.attention(x).unsqueeze(-1)
-        return x * weights
+        # x: (batch, channels, time)
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = self.dropout(x)
+
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = self.dropout(x)
+
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = self.pool(x).squeeze(-1)  # (batch, hidden_dim)
+
+        return x
+
+class MultiHeadSelfAttention(nn.Module):
+    """Multi-head self attention for sensor fusion"""
+
+    def __init__(self, hidden_dim=64, num_heads=4, dropout=0.1):
+        super().__init__()
+        self.attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.norm = nn.LayerNorm(hidden_dim)
+
+    def forward(self, x):
+        # x: (batch, num_sensors, hidden_dim)
+        attn_out, _ = self.attention(x, x, x)
+        x = self.norm(x + attn_out)
+        return x
 
 class MultiStreamAttentionCNN(nn.Module):
-    """Multi-Stream Attention CNN for OA Screening"""
-    def __init__(self, num_sensors=4, num_channels=9, num_classes=1):
+    """Multi-Stream Attention CNN for Gait Classification"""
+
+    def __init__(self, num_sensors=4, in_channels=6, hidden_dim=64, num_classes=1, num_heads=4, dropout=0.3):
         super().__init__()
         self.num_sensors = num_sensors
 
         # Per-sensor CNN streams
-        self.sensor_streams = nn.ModuleList([
-            nn.Sequential(
-                nn.Conv1d(num_channels, 64, kernel_size=5, padding=2),
-                nn.BatchNorm1d(64),
-                nn.ReLU(),
-                nn.MaxPool1d(2),
-
-                nn.Conv1d(64, 128, kernel_size=5, padding=2),
-                nn.BatchNorm1d(128),
-                nn.ReLU(),
-                nn.MaxPool1d(2),
-
-                StreamAttention(128),
-
-                nn.Conv1d(128, 256, kernel_size=3, padding=1),
-                nn.BatchNorm1d(256),
-                nn.ReLU(),
-                nn.AdaptiveAvgPool1d(1)
-            )
+        self.streams = nn.ModuleList([
+            SensorStream(in_channels, hidden_dim, dropout)
             for _ in range(num_sensors)
         ])
 
-        # Fusion layers
-        self.fusion = nn.Sequential(
-            nn.Linear(256 * num_sensors, 512),
+        # Multi-head self-attention for sensor fusion
+        self.attention = MultiHeadSelfAttention(hidden_dim, num_heads, dropout)
+
+        # Classification head
+        self.fc = nn.Sequential(
+            nn.Linear(hidden_dim * num_sensors, hidden_dim),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(512, 128),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(128, num_classes)
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, num_classes)
         )
 
     def forward(self, x):
+        # x: (batch, num_sensors, in_channels, time)
         batch_size = x.shape[0]
         sensor_features = []
 
-        for i, stream in enumerate(self.sensor_streams):
-            sensor_data = x[:, i*9:(i+1)*9, :]
-            features = stream(sensor_data)
-            sensor_features.append(features.view(batch_size, -1))
+        for i, stream in enumerate(self.streams):
+            sensor_x = x[:, i]  # (batch, channels, time)
+            sensor_feat = stream(sensor_x)  # (batch, hidden_dim)
+            sensor_features.append(sensor_feat)
 
-        fused = torch.cat(sensor_features, dim=1)
-        output = self.fusion(fused)
-        return output
+        # Stack sensor features
+        x = torch.stack(sensor_features, dim=1)  # (batch, num_sensors, hidden_dim)
+
+        # Apply attention
+        x = self.attention(x)  # (batch, num_sensors, hidden_dim)
+
+        # Flatten and classify
+        x = x.view(batch_size, -1)  # (batch, num_sensors * hidden_dim)
+        x = self.fc(x)
+
+        return x.squeeze(-1)
 
 # ============================================================================
 # Dataset
@@ -183,13 +210,15 @@ class GaitDataset(Dataset):
                 for cohort_path in cohorts:
                     cohort_name = cohort_path.name
 
-                    # Load sensor data
+                    # Load sensor data (6 channels per sensor: Acc + Gyr, NO Mag)
                     sensor_data = []
                     for sensor in self.sensors:
                         file_path = cohort_path / f'_raw_data_{sensor}.txt'
                         if not file_path.exists():
                             break
                         data = np.loadtxt(file_path, skiprows=1)
+                        # Take only first 6 columns (Acc_X/Y/Z, Gyr_X/Y/Z)
+                        data = data[:, :6]
                         sensor_data.append(data)
 
                     if len(sensor_data) != len(self.sensors):
@@ -223,13 +252,12 @@ class GaitDataset(Dataset):
 
         for start in range(0, num_samples - window_size + 1, stride):
             end = start + window_size
-            window = sensor_data[:, :, start:end]
+            window = sensor_data[:, :, start:end]  # (4, 6, 300)
 
             # Normalize per window
             window = (window - window.mean(axis=2, keepdims=True)) / (window.std(axis=2, keepdims=True) + 1e-8)
 
-            # Reshape: (4 sensors, 9 channels, 300 samples) -> (36, 300)
-            window = window.reshape(-1, window_size)
+            # Shape: (4 sensors, 6 channels, 300 samples)
             windows.append(window)
 
         return windows
@@ -254,9 +282,12 @@ class TemporalAnalyzer:
         # Load model
         print(f"\n[Model] Loading from {model_path}")
         self.model = MultiStreamAttentionCNN(
-            num_sensors=Config.NUM_SENSORS,
-            num_channels=Config.NUM_CHANNELS,
-            num_classes=Config.NUM_CLASSES
+            num_sensors=4,
+            in_channels=6,  # Acc + Gyr (no Mag)
+            hidden_dim=64,
+            num_classes=1,
+            num_heads=4,
+            dropout=0.3
         )
 
         checkpoint = torch.load(model_path, map_location=self.device)
@@ -321,10 +352,10 @@ class TemporalAnalyzer:
 
     def _analyze_sub_windows(self, window_data):
         """Analyze sub-windows within a 3-second window"""
-        # window_data shape: (36, 300)
+        # window_data shape: (4, 6, 300)
         sub_window_size = Config.SUB_WINDOW_SIZE
         stride = Config.SUB_WINDOW_STRIDE
-        window_length = window_data.shape[1]
+        window_length = window_data.shape[2]  # Time dimension is now axis 2
 
         temporal_probs = []
 
@@ -332,13 +363,13 @@ class TemporalAnalyzer:
             end = start + sub_window_size
 
             # Extract sub-window and pad to full size
-            sub_window = torch.zeros(36, 300, device=self.device)
-            sub_window[:, start:end] = window_data[:, start:end]
+            sub_window = torch.zeros(4, 6, 300, device=self.device)
+            sub_window[:, :, start:end] = window_data[:, :, start:end]
 
             # Predict
-            sub_window = sub_window.unsqueeze(0)  # Add batch dimension
+            sub_window = sub_window.unsqueeze(0)  # Add batch dimension -> (1, 4, 6, 300)
             outputs = self.model(sub_window)
-            prob = torch.sigmoid(outputs).cpu().numpy()[0, 0]
+            prob = torch.sigmoid(outputs).cpu().numpy()[0]
             temporal_probs.append(prob)
 
         return temporal_probs
