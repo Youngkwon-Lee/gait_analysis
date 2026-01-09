@@ -339,6 +339,15 @@ def load_oa_screening_data():
 # Temporal Analyzer
 # ============================================================================
 
+def collate_fn_with_metadata(batch):
+    """Custom collate function to handle metadata properly"""
+    inputs, labels, metadata = zip(*batch)
+    inputs = torch.stack(inputs)
+    labels = torch.stack(labels)
+    # Keep metadata as list of dicts
+    return inputs, labels, list(metadata)
+
+
 class TemporalAnalyzer:
     """Analyze temporal patterns within windows"""
 
@@ -378,7 +387,12 @@ class TemporalAnalyzer:
             stride=Config.OVERLAP,
             augment=False
         )
-        self.loader = DataLoader(self.dataset, batch_size=1, shuffle=False)
+        self.loader = DataLoader(
+            self.dataset,
+            batch_size=1,
+            shuffle=False,
+            collate_fn=collate_fn_with_metadata
+        )
 
     def analyze_temporal_patterns(self):
         """Analyze temporal patterns for all windows"""
@@ -391,12 +405,14 @@ class TemporalAnalyzer:
         with torch.no_grad():
             for idx, (inputs, labels, metadata) in enumerate(tqdm(self.loader, desc="Analyzing windows")):
                 inputs = inputs.to(self.device)
-                labels = labels.cpu().numpy()[0, 0]
-                metadata = metadata
+                label = float(labels[0].cpu().numpy())
+
+                # metadata is a list of dicts when batch_size=1
+                meta = metadata if isinstance(metadata, dict) else metadata[0]
 
                 # Full window prediction
                 outputs = self.model(inputs)
-                prob = torch.sigmoid(outputs).cpu().numpy()[0, 0]
+                prob = float(torch.sigmoid(outputs)[0].cpu().numpy())
                 pred = int(prob >= 0.5)
 
                 # Temporal sub-window analysis
@@ -408,14 +424,14 @@ class TemporalAnalyzer:
                 # Store results
                 result = {
                     'window_id': idx,
-                    'group': metadata['group'][0],
-                    'cohort': metadata['cohort'][0],
-                    'cohort_window_idx': metadata['window_idx'][0],
-                    'label': int(labels),
+                    'trial_path': str(meta['trial_path']),
+                    'subject': meta['subject'],
+                    'window_start': meta['window_start'],
+                    'label': int(label),
                     'prediction': pred,
-                    'probability': float(prob),
-                    'correct': pred == int(labels),
-                    'error_type': self._get_error_type(pred, int(labels)),
+                    'probability': prob,
+                    'correct': pred == int(label),
+                    'error_type': self._get_error_type(pred, int(label)),
                     'temporal_probabilities': [float(p) for p in temporal_probs],
                     'gait_phase_probabilities': {k: float(v) for k, v in phase_probs.items()},
                     'temporal_variance': float(np.var(temporal_probs)),
