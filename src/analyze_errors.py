@@ -656,19 +656,34 @@ Key Insights:
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Error Analysis - Phase 1-1')
+    parser.add_argument('--task', type=str, default='OA_Screening',
+                       choices=['OA_Screening', 'PD_Screening', 'CVA_Detection', 'PD_vs_CVA'],
+                       help='Task name for analysis')
+    args = parser.parse_args()
+
+    task_name = args.task
+
     print("="*80)
-    print("Error Analysis - Phase 1-1")
+    print(f"Error Analysis - Phase 1-1: {task_name}")
     print("="*80)
 
-    # Model path
-    model_path = Config.MODEL_PATH / 'OA_Screening_best.pth'
+    # Model path (try both .pth and .pt extensions)
+    model_path = Config.MODEL_PATH / f'{task_name}_best.pth'
+    if not model_path.exists():
+        model_path = Config.MODEL_PATH / f'{task_name}_best.pt'
 
     if not model_path.exists():
-        print(f"[ERROR] Model not found: {model_path}")
+        print(f"[ERROR] Model not found: {Config.MODEL_PATH / f'{task_name}_best.pth'}")
+        print(f"[ERROR] Also tried: {Config.MODEL_PATH / f'{task_name}_best.pt'}")
         return
 
+    print(f"[Model] Using: {model_path}")
+
     # Create analyzer
-    analyzer = ErrorAnalyzer(model_path, task_name='OA_Screening')
+    analyzer = ErrorAnalyzer(model_path, task_name=task_name)
 
     # Run analysis
     print("\n[1/3] Running error analysis...")
@@ -676,7 +691,7 @@ def main():
 
     # Save results
     print("\n[2/3] Saving results...")
-    output_file = Config.OUTPUT_PATH / 'OA_Screening_error_analysis.json'
+    output_file = Config.OUTPUT_PATH / f'{task_name}_error_analysis.json'
 
     # Remove raw_results for JSON serialization
     results_to_save = {k: v for k, v in analysis_results.items() if k != 'raw_results'}
@@ -690,7 +705,7 @@ def main():
     analyzer.visualize_errors(analysis_results)
 
     print("\n" + "="*80)
-    print("[DONE] Error Analysis Complete!")
+    print(f"[DONE] Error Analysis Complete for {task_name}!")
     print(f"Output directory: {Config.OUTPUT_PATH}")
     print("="*80)
 
